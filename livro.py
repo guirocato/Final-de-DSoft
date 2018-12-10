@@ -97,13 +97,14 @@ class LivroSpider(scrapy.Spider):
             titulo = response.xpath("//section[contains(@id, 'pdp-info')]/h1//text()").extract()
             
             preco = response.css("span::attr(data-price)").extract()
-            
+            preco = [i.replace(',','.') for i in preco]
+            preco = [float(i) for i in preco]
             #codigo = response.xpath("//span[@class='title_note']/text()").extract()
             #codigo = [i[6:-1] for i in codigo]
             
-            intervalo = np.arange(1,15)
+            intervalo = np.arange(1,5)
             
-            codigo = 'X'
+            codigo = 'Não'
             for i in intervalo:
                 c = response.xpath("//div[@class='overflow_container']/ul/li["+str(i)+"]/dl/dt/text()").extract()
                 #print(p)
@@ -112,14 +113,14 @@ class LivroSpider(scrapy.Spider):
                     codigo = [i[:-57] for i in codigo]
                     break
                 else:
-                    pagina= 'X'
+                    codigo= 'Não'
                 
         #    while "\n" in titulo: titulo.remove("\n")
         #    
         #    arrecadado = response.css(".funding-raised.text-kickante::text").extract()
         #   
         
-            idioma = 'X'
+            idioma = 'Não'
             for i in intervalo:
                 p = response.xpath("//div[@class='overflow_container']/ul/li["+str(i)+"]/dl/dt/text()").extract()
                 #print(p)
@@ -128,21 +129,22 @@ class LivroSpider(scrapy.Spider):
                     idioma = [i[:-57] for i in idioma]
                     break
                 else:
-                    idioma= 'X'
+                    idioma= 'Não'
         
             
-            pagina = 'X'
+            pagina = 'Não'
             for i in intervalo:
                 p = response.xpath("//div[@class='overflow_container']/ul/li["+str(i)+"]/dl/dt/text()").extract()
                 #print(p)
                 if p==['Número de Páginas']:
                     pagina = response.xpath("//div[@class='overflow_container']/ul/li["+str(i)+"]/dl/dd/text()").extract()
                     pagina = [i[:-57] for i in pagina]
+                    pagina = [int(i) for i in pagina]
                     break
                 else:
-                    pagina= 'X'
+                    pagina= 'Não'
             
-            editora = 'X'
+            editora = 'Não'
             for i in intervalo:
                 e = response.xpath("//div[@class='overflow_container']/ul/li["+str(i)+"]/dl/dt/text()").extract()
                 #print(e)
@@ -151,7 +153,7 @@ class LivroSpider(scrapy.Spider):
                     editora = [i[:-57] for i in editora]
                     break
                 else:
-                    editora='X'
+                    editora='Não'
             
             autor = response.xpath("//div[@class='overflow_container content']/h3//text()").extract()
             #at = ''.join(autor)
@@ -170,6 +172,138 @@ class LivroSpider(scrapy.Spider):
           #  link = str(link)
           #  print(l)
           #  print(link)
+        #    
+            for item in zip (titulo,autor, editora, preco, pagina, idioma, codigo):
+                scraped_info = {'Titulo': item[0],
+                                'Autor': item[1], 
+                                'Editora': item[2],
+                                'Preço': item[3],
+                                'Páginas':item[4],
+                                'Idioma':item[5],
+                                'Código de Barras': item[6],
+                                #'Link': item[6],
+                                }
+            #    print(scraped_info)
+            #    
+                yield scraped_info
+    
+    if categoria=='2':
+        start_urls = ['https://busca.saraiva.com.br/pages/e-book/']
+        
+        custom_settings = {'FEED_URI': 'Ebook.csv'}
+        
+       
+        
+        def parse(self,response):
+            categorias = response.xpath("//ul[contains(@class, 'neemu-category-filter-level neemu-category-filter-level-1 display-block')]/li/a/span[contains(@class,'neemu-filter-text')]//text()").extract()
+            categorias = [i[45:] for i in categorias]
+            cat = []
+            n = 0
+            print()
+            print()
+            print('             Selecione a categoria do e-book que procura        '.upper())
+            print()
+            print()
+            for i in categorias:
+                opcoes = i
+                cat.append(opcoes)
+                print('                     {0} - {1}'.format(n, opcoes))
+                n+=1
+            #print(cat)
+            decisao = int(input('\n\n\nDigite o número da categoria escolhida:'))
+            link = response.xpath("//ul[contains(@class, 'neemu-category-filter-level neemu-category-filter-level-1 display-block')]/li/a[contains(@class,'neemu-filter-link')]//@href").extract()[decisao]
+            link = link[42:]
+            print(link)
+            l_url = []
+            base = 'https://busca.saraiva.com.br/pages/e-book/'
+            url1 = base+link
+            print(url1)
+            n = np.arange(1,5)
+            for n in n:
+            #url1 = response.urljoin(href1)
+                url =  url1+'?page={0}'.format(n)
+                l_url.append(url)
+                
+            print(l_url)
+            for i in l_url:
+                request = scrapy.Request(i, callback = self.parse_page_contents)
+                yield request
+            #request = scrapy.Request(url, callback = self.parse_page_contents, dont_filter =True)
+            #yield request
+            
+       
+        def parse_page_contents(self,response):
+            
+            link1 = response.xpath("//h2[@class='nm-product-name']//@href").extract()
+            
+            
+            for href1 in link1:
+                url = response.urljoin(href1)
+                
+                request = scrapy.Request(url, callback = self.parse_dir_contents)
+                yield request
+        
+        def parse_dir_contents(self, response):
+            
+            titulo = response.xpath("//section[contains(@id, 'pdp-info')]/h1//text()").extract()
+            
+            preco = response.css("span::attr(data-price)").extract()
+            preco = [i.replace(',','.') for i in preco]
+            preco = [float(i) for i in preco]
+            
+            #codigo = response.xpath("//span[@class='title_note']/text()").extract()
+            #codigo = [i[6:-1] for i in codigo]
+            
+            intervalo = np.arange(1,15)
+            
+            codigo = 'Não'
+            for i in intervalo:
+                c = response.xpath("//div[@class='overflow_container']/ul/li["+str(i)+"]/dl/dt/text()").extract()
+                #print(p)
+                if c==['Cód. Barras']:
+                    codigo = response.xpath("//div[@class='overflow_container']/ul/li["+str(i)+"]/dl/dd/text()").extract()
+                    codigo = [i[:-57] for i in codigo]
+                    break
+                else:
+                    pagina= 'Não'
+       
+            idioma = 'Não'
+            for i in intervalo:
+                p = response.xpath("//div[@class='overflow_container']/ul/li["+str(i)+"]/dl/dt/text()").extract()
+                #print(p)
+                if p==['Idioma']:
+                    idioma = response.xpath("//div[@class='overflow_container']/ul/li["+str(i)+"]/dl/dd/text()").extract()
+                    idioma = [i[:-57] for i in idioma]
+                    break
+                else:
+                    idioma= 'Não'
+        
+            
+            pagina = 'Não'
+            for i in intervalo:
+                p = response.xpath("//div[@class='overflow_container']/ul/li["+str(i)+"]/dl/dt/text()").extract()
+                #print(p)
+                if p==['Número de Páginas']:
+                    pagina = response.xpath("//div[@class='overflow_container']/ul/li["+str(i)+"]/dl/dd/text()").extract()
+                    pagina = [i[:-57] for i in pagina]
+                    pagina = [int(i) for i in pagina]
+                    break
+                else:
+                    pagina= 'Não'
+            
+            editora = 'Não'
+            for i in intervalo:
+                e = response.xpath("//div[@class='overflow_container']/ul/li["+str(i)+"]/dl/dt/text()").extract()
+                #print(e)
+                if e==['Marca']:
+                    editora = response.xpath("//div[@class='overflow_container']/ul/li["+str(i)+"]/dl/dd/text()").extract()
+                    editora = [i[:-57] for i in editora]
+                    break
+                else:
+                    editora='Não'
+            
+            autor = response.xpath("//div[@class='overflow_container content']/h3//text()").extract()
+      
         #    
             for item in zip (titulo,autor, editora, preco, pagina, idioma, codigo):
                 scraped_info = {'Titulo': item[0],
